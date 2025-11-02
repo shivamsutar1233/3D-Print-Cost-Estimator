@@ -23,7 +23,7 @@ export default function App() {
             <FileUpload
               onFile={(f) => {
                 setFile(f);
-                setPreviewUrl(URL.createObjectURL(f));
+                setPreviewUrl(f.url);
               }}
               setModelInfo={setModelInfo}
             />

@@ -1,15 +1,11 @@
 // backend/server.js
 import express from "express";
 import cors from "cors";
-import multer from "multer";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import * as THREE from "three";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(
@@ -24,7 +20,7 @@ app.use(
   })
 );
 app.use(express.json());
-const upload = multer({ dest: path.join(__dirname, "uploads/") });
+// const upload = multer({ dest: path.join(__dirname, "uploads/") });
 
 // Pricing & machine params (tweak as you like)
 const MATERIAL_RATE_PER_CM3 = { PLA: 5, ABS: 6.5, PETG: 7.0 }; // currency units per cm³
@@ -76,14 +72,17 @@ function detectSupports(geometry) {
   return ratio > 0.1; // if >10% faces are overhangs -> supports likely
 }
 
-app.post("/api/estimate", upload.single("file"), async (req, res) => {
+app.post("/api/estimate", async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!req.body.url)
+      return res.status(400).json({ message: "No file uploaded" });
 
     const { material = "PLA", infill = "20", layerHeight = "0.2" } = req.body;
-    const filePath = req.file.path;
-    const nodeBuf = fs.readFileSync(filePath);
-    const arrayBuffer = toArrayBuffer(nodeBuf);
+    // const filePath = req.file.path;
+    const file = await fetch(req.body.url);
+    // const nodeBuf = fs.readFileSync(fileURLToPath(new URL(req.body.url)));
+    // const arrayBuffer = toArrayBuffer(nodeBuf);
+    const arrayBuffer = await file.arrayBuffer();
 
     // Parse STL
     const loader = new STLLoader();
@@ -138,7 +137,7 @@ app.post("/api/estimate", upload.single("file"), async (req, res) => {
     const totalCost = +(materialCost + SERVICE_CHARGE).toFixed(2);
 
     // cleanup
-    fs.unlinkSync(filePath);
+    // fs.unlinkSync(filePath);
 
     res.json({
       volume_cm3: +volumeCM3.toFixed(2),

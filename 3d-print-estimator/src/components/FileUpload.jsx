@@ -1,23 +1,56 @@
 import { useState } from "react";
+import { put } from "@vercel/blob";
+// import { randomUUID } from "crypto";
+import { v4 as uuid } from "uuid";
 import axios from "axios";
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb",
+    },
+  },
+};
+
+async function uploadToBlob(file) {
+  try {
+    const blob = await put(
+      `3-d-print-cost-estimator-blob/${uuid()}-${file.name}`,
+      file,
+      {
+        access: "public",
+        contentType: file.type,
+        token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN,
+      }
+    );
+    return blob;
+  } catch (err) {
+    console.error("Blob upload error:", err);
+    throw new Error("Upload failed");
+  }
+}
 
 export default function FileUpload({ onFile, setModelInfo }) {
   const [loading, setLoading] = useState(false);
 
   const uploadAndAnalyze = async (file) => {
     setLoading(true);
-    const fd = new FormData();
-    fd.append("file", file);
+    // const fd = new FormData();
+    // fd.append("file", file);
 
     try {
       // call backend just to compute model stats immediately (default params)
       //   const res = await axios.post("http://localhost:5000/api/estimate", fd);
+      const blob = await uploadToBlob(file);
       const res = await axios.post(
-        "https://3-d-print-cost-estimator-zlt9.vercel.app/api/estimate",
-        fd
+        // "https://3-d-print-cost-estimator-zlt9.vercel.app/api/estimate",
+        "http://localhost:5000/api/estimate",
+        {
+          url: blob.url,
+        }
       );
+
       setModelInfo(res.data);
-      if (onFile) onFile(file);
+      if (onFile) onFile(blob);
     } catch (err) {
       console.error(err);
       alert("Upload/analysis failed. See backend logs.");
