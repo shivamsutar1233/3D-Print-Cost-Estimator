@@ -11,7 +11,11 @@ export default function FileUpload({ onFile, setModelInfo }) {
 
     try {
       // call backend just to compute model stats immediately (default params)
-      const res = await axios.post("http://localhost:5000/api/estimate", fd);
+      //   const res = await axios.post("http://localhost:5000/api/estimate", fd);
+      const res = await axios.post(
+        "https://3-d-print-cost-estimator-zlt9.vercel.app/api/estimate",
+        fd
+      );
       setModelInfo(res.data);
       if (onFile) onFile(file);
     } catch (err) {
