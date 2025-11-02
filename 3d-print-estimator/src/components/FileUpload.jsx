@@ -42,8 +42,8 @@ export default function FileUpload({ onFile, setModelInfo }) {
       //   const res = await axios.post("http://localhost:5000/api/estimate", fd);
       const blob = await uploadToBlob(file);
       const res = await axios.post(
-        // "https://3-d-print-cost-estimator-zlt9.vercel.app/api/estimate",
-        "http://localhost:5000/api/estimate",
+        "https://3-d-print-cost-estimator-zlt9.vercel.app/api/estimate",
+        // "http://localhost:5000/api/estimate",
         {
           url: blob.url,
         }
