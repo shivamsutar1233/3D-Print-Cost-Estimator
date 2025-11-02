@@ -157,6 +157,10 @@ app.post("/api/estimate", upload.single("file"), async (req, res) => {
   }
 });
 
+app.get("/", (req, res) => {
+  res.send("3D Print Cost Estimator Backend is running.");
+});
+
 const PORT = 5000;
 app.listen(PORT, () =>
   console.log(`✅ Backend listening on http://localhost:${PORT}`)
