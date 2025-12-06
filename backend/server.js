@@ -30,6 +30,7 @@ app.use(express.json());
 
 // Google Sheets Configuration
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const GOOGLE_ORDER_SHEET_ID = process.env.GOOGLE_ORDER_SHEET_ID;
 // const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 // const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(
 //   /\\n/g,
@@ -286,7 +287,7 @@ async function ensureCustomOrderDetailsSheet() {
 
     // Get all sheets
     const spreadsheet = await sheets.spreadsheets.get({
-      spreadsheetId: GOOGLE_SHEET_ID,
+      spreadsheetId: GOOGLE_ORDER_SHEET_ID,
     });
 
     const existingSheet = spreadsheet.data.sheets.find(
@@ -296,7 +297,7 @@ async function ensureCustomOrderDetailsSheet() {
     if (!existingSheet) {
       // Create sheet if it doesn't exist
       await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: GOOGLE_SHEET_ID,
+        spreadsheetId: GOOGLE_ORDER_SHEET_ID,
         resource: {
           requests: [
             {
@@ -312,7 +313,7 @@ async function ensureCustomOrderDetailsSheet() {
 
       // Add headers
       await sheets.spreadsheets.values.update({
-        spreadsheetId: GOOGLE_SHEET_ID,
+        spreadsheetId: GOOGLE_ORDER_SHEET_ID,
         range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
         valueInputOption: "USER_ENTERED",
         resource: {
@@ -322,7 +323,7 @@ async function ensureCustomOrderDetailsSheet() {
     } else {
       // Check if headers exist
       const existingHeaders = await sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_SHEET_ID,
+        spreadsheetId: GOOGLE_ORDER_SHEET_ID,
         range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
       });
 
@@ -332,7 +333,7 @@ async function ensureCustomOrderDetailsSheet() {
       ) {
         // Add headers if missing
         await sheets.spreadsheets.values.update({
-          spreadsheetId: GOOGLE_SHEET_ID,
+          spreadsheetId: GOOGLE_ORDER_SHEET_ID,
           range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
           valueInputOption: "USER_ENTERED",
           resource: {
@@ -378,7 +379,7 @@ app.post("/api/saveCustomOrderDetails", async (req, res) => {
       });
     }
 
-    if (!GOOGLE_SHEET_ID) {
+    if (!GOOGLE_ORDER_SHEET_ID) {
       return res.status(500).json({
         success: false,
         message: "Google Sheets not configured",
@@ -393,7 +394,7 @@ app.post("/api/saveCustomOrderDetails", async (req, res) => {
 
     // Append row to sheet
     await sheets.spreadsheets.values.append({
-      spreadsheetId: GOOGLE_SHEET_ID,
+      spreadsheetId: GOOGLE_ORDER_SHEET_ID,
       range: `${CUSTOM_SHEET_NAME}!A:Q`,
       valueInputOption: "USER_ENTERED",
       resource: {
@@ -441,7 +442,7 @@ app.get("/api/customOrderDetails/:modelId", async (req, res) => {
   try {
     const { modelId } = req.params;
 
-    if (!GOOGLE_SHEET_ID) {
+    if (!GOOGLE_ORDER_SHEET_ID) {
       return res.status(500).json({
         success: false,
         message: "Google Sheets not configured",
@@ -452,7 +453,7 @@ app.get("/api/customOrderDetails/:modelId", async (req, res) => {
 
     // Get all rows
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: GOOGLE_SHEET_ID,
+      spreadsheetId: GOOGLE_ORDER_SHEET_ID,
       range: `${CUSTOM_SHEET_NAME}!A:Q`,
     });
 
@@ -523,7 +524,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
     const { modelId } = req.params;
     const updateData = req.body;
 
-    if (!GOOGLE_SHEET_ID) {
+    if (!GOOGLE_ORDER_SHEET_ID) {
       return res.status(500).json({
         success: false,
         message: "Google Sheets not configured",
@@ -534,7 +535,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
 
     // Get all rows
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: GOOGLE_SHEET_ID,
+      spreadsheetId: GOOGLE_ORDER_SHEET_ID,
       range: `${CUSTOM_SHEET_NAME}!A:Q`,
     });
 
@@ -588,7 +589,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
 
     // Update row in sheet
     await sheets.spreadsheets.values.update({
-      spreadsheetId: GOOGLE_SHEET_ID,
+      spreadsheetId: GOOGLE_ORDER_SHEET_ID,
       range: `${CUSTOM_SHEET_NAME}!A${rowIndex + 1}:Q${rowIndex + 1}`,
       valueInputOption: "USER_ENTERED",
       resource: {
