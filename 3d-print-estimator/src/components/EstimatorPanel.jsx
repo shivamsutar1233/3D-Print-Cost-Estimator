@@ -109,6 +109,7 @@ export default function EstimatorPanel({
         isUpdate = true;
       }
       let response = null;
+      let orderId = null;
 
       if (!isUpdate) {
         // Generate a new orderId for new orders
@@ -123,16 +124,18 @@ export default function EstimatorPanel({
           isCustomOrder: true,
         });
         customOrderData.orderId = response.data.linkId;
+        orderId = response.data.linkId;
       }
 
       // Save or update custom order details to Google Sheets
       if (isUpdate) {
         // Update existing order details
-        await axios.put(
-          `${API_ENDPOINTS.UPDATE_CUSTOM_ORDER}/${modelId}`,
+        response = await axios.put(
+          `${API_ENDPOINTS.UPDATE_CUSTOM_ORDER}/${customOrderData.orderId}`,
           customOrderData
         );
         console.log("Custom order details updated successfully");
+        orderId = response.orderId;
       } else {
         // Create new order details
         await axios.post(API_ENDPOINTS.SAVE_CUSTOM_ORDER, customOrderData);
@@ -140,10 +143,10 @@ export default function EstimatorPanel({
       }
 
       // Redirect to generated link with referrer
-      if (response.data.linkId) {
-        const linkWithReferrer = `https://forms.div-arch.com/checkout/${
-          response.data.linkId
-        }?referrer=${encodeURIComponent(window.location.href)}`;
+      if (orderId) {
+        const linkWithReferrer = `https://forms.div-arch.com/checkout/${orderId}?referrer=${encodeURIComponent(
+          window.location.href
+        )}`;
         window.location.href = linkWithReferrer;
       }
     } catch (err) {

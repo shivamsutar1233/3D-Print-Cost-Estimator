@@ -522,10 +522,10 @@ app.get("/api/customOrderDetails/:modelId", async (req, res) => {
   }
 });
 
-// PUT /api/updateCustomOrderDetails/:modelId - Update order details
-app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
+// PUT /api/updateCustomOrderDetails/:orderId - Update order details
+app.put("/api/updateCustomOrderDetails/:orderId", async (req, res) => {
   try {
-    const { modelId } = req.params;
+    const { orderId } = req.params;
     const updateData = req.body;
 
     if (!GOOGLE_ORDER_SHEET_ID) {
@@ -544,7 +544,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
     });
 
     const rows = response.data.values || [];
-    const rowIndex = rows.findIndex((row) => row[1] === modelId);
+    const rowIndex = rows.findIndex((row) => row[0] === orderId);
 
     if (rowIndex === -1) {
       return res.status(404).json({
@@ -605,7 +605,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
     res.json({
       success: true,
       message: "Custom order details updated successfully",
-      modelId,
+      orderId,
     });
   } catch (err) {
     console.error("Error updating custom order details:", err);
