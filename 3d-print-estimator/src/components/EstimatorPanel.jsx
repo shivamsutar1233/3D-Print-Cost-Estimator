@@ -131,7 +131,7 @@ export default function EstimatorPanel({
       if (isUpdate) {
         // Update existing order details
         response = await axios.put(
-          `${API_ENDPOINTS.UPDATE_CUSTOM_ORDER}/${customOrderData.orderId}`,
+          `${API_ENDPOINTS.UPDATE_CUSTOM_ORDER}/${customOrderDetails.orderId}`,
           customOrderData
         );
         console.log("Custom order details updated successfully");
