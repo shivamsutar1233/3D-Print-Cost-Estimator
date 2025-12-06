@@ -136,6 +136,8 @@ export default function EstimatorPanel({
         );
         console.log("Custom order details updated successfully");
         orderId = response.orderId;
+        console.log("Order ID:", orderId);
+        console.log("Order ID:", response);
       } else {
         // Create new order details
         await axios.post(API_ENDPOINTS.SAVE_CUSTOM_ORDER, customOrderData);
