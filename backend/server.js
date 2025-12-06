@@ -264,7 +264,7 @@ app.get("/api/get-model/:modelId", async (req, res) => {
 // Helper function: Ensure CustomOrderDetails sheet and headers exist
 async function ensureCustomOrderDetailsSheet() {
   try {
-    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+    const CUSTOM_SHEET_NAME = "Custom-Orders";
     const headers = [
       "Model ID",
       "Material",
@@ -389,7 +389,7 @@ app.post("/api/saveCustomOrderDetails", async (req, res) => {
     // Ensure sheet exists
     await ensureCustomOrderDetailsSheet();
 
-    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+    const CUSTOM_SHEET_NAME = "Custom-Orders";
     const finalTimestamp = timestamp || new Date().toISOString();
 
     // Append row to sheet
@@ -449,7 +449,7 @@ app.get("/api/customOrderDetails/:modelId", async (req, res) => {
       });
     }
 
-    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+    const CUSTOM_SHEET_NAME = "Custom-Orders";
 
     // Get all rows
     const response = await sheets.spreadsheets.values.get({
@@ -531,7 +531,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
       });
     }
 
-    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+    const CUSTOM_SHEET_NAME = "Custom-Orders";
 
     // Get all rows
     const response = await sheets.spreadsheets.values.get({
