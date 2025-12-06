@@ -3,12 +3,18 @@ import express from "express";
 import cors from "cors";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import * as THREE from "three";
+import { google } from "googleapis";
+import { config } from "dotenv";
+
+// Load environment variables from .env.local or .env
+config();
 
 // const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);
+// config({ path: "./.env.local" });
 
 const app = express();
-// app.use(
+// a.use(
 //   cors({
 //     origin: [
 //       "http://localhost:5173",
@@ -21,6 +27,29 @@ const app = express();
 // );
 app.use(cors());
 app.use(express.json());
+
+// Google Sheets Configuration
+const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
+// const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+// const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(
+//   /\\n/g,
+//   "\n"
+// );
+const SHEET_NAME = "Models"; // Name of the sheet to store models
+
+// Initialize Google Sheets API
+const auth = new google.auth.GoogleAuth({
+  credentials: {
+    type: "service_account",
+    project_id: "whatsapp-checkout",
+    private_key: process.env.GOOGLE_SHEETS_PRIVATE_KEY.replace(/\\n/g, "\n"),
+    client_email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+    universe_domain: "googleapis.com",
+  },
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+
+const sheets = google.sheets({ version: "v4", auth });
 // const upload = multer({ dest: path.join(__dirname, "uploads/") });
 
 // Pricing & machine params (tweak as you like)
@@ -155,6 +184,77 @@ app.post("/api/estimate", async (req, res) => {
     return res
       .status(500)
       .json({ message: "Server error", error: err.message });
+  }
+});
+
+// Save model to Google Sheets
+app.post("/api/save-model", async (req, res) => {
+  try {
+    const { modelId, modelUrl } = req.body;
+
+    if (!modelId || !modelUrl) {
+      return res
+        .status(400)
+        .json({ message: "modelId and modelUrl are required" });
+    }
+
+    if (!GOOGLE_SHEET_ID) {
+      return res.status(500).json({ message: "Google Sheets not configured" });
+    }
+
+    // Append row to sheet
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${SHEET_NAME}!A:B`,
+      valueInputOption: "USER_ENTERED",
+      resource: {
+        values: [[modelId, modelUrl, new Date().toISOString()]],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Model saved to sheet",
+      updatedRows: response.data.updates.updatedRows,
+    });
+  } catch (err) {
+    console.error("Error saving model to sheet:", err);
+    res.status(500).json({ message: "Error saving model", error: err.message });
+  }
+});
+
+// Fetch model URL from Google Sheets by modelId
+app.get("/api/get-model/:modelId", async (req, res) => {
+  try {
+    const { modelId } = req.params;
+
+    if (!GOOGLE_SHEET_ID) {
+      return res.status(500).json({ message: "Google Sheets not configured" });
+    }
+
+    // Read all rows from sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${SHEET_NAME}!A:B`,
+    });
+
+    const rows = response.data.values || [];
+    // Skip header row (index 0) and find matching modelId
+    const modelRow = rows.find((row) => row[0] === modelId);
+
+    if (!modelRow) {
+      return res.status(404).json({ message: "Model not found" });
+    }
+
+    res.json({
+      modelId: modelRow[0],
+      modelUrl: modelRow[1],
+    });
+  } catch (err) {
+    console.error("Error fetching model from sheet:", err);
+    res
+      .status(500)
+      .json({ message: "Error fetching model", error: err.message });
   }
 });
 

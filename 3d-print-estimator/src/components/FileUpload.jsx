@@ -3,6 +3,8 @@ import { put } from "@vercel/blob";
 // import { randomUUID } from "crypto";
 import { v4 as uuid } from "uuid";
 import axios from "axios";
+import { generateModelId, updateUrlWithModelId } from "../utils/urlState";
+
 export const config = {
   api: {
     bodyParser: {
@@ -29,6 +31,23 @@ async function uploadToBlob(file) {
   }
 }
 
+async function saveModelToSheet(modelId, modelUrl) {
+  try {
+    const response = await axios.post(
+      "https://3-d-print-cost-estimator-zlt9.vercel.app/api/save-model",
+      // "http://localhost:5000/api/save-model",
+      {
+        modelId,
+        modelUrl,
+      }
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Error saving model to sheet:", err);
+    throw new Error("Failed to save model to sheet");
+  }
+}
+
 export default function FileUpload({ onFile, setModelInfo }) {
   const [loading, setLoading] = useState(false);
 
@@ -38,9 +57,19 @@ export default function FileUpload({ onFile, setModelInfo }) {
     // fd.append("file", file);
 
     try {
-      // call backend just to compute model stats immediately (default params)
-      //   const res = await axios.post("http://localhost:5000/api/estimate", fd);
+      // Step 1: Upload to Vercel Blob
       const blob = await uploadToBlob(file);
+
+      // Step 2: Generate unique model ID
+      const modelId = generateModelId();
+
+      // Step 3: Save to Google Sheets
+      await saveModelToSheet(modelId, blob.url);
+
+      // Step 4: Update URL with model ID
+      updateUrlWithModelId(modelId);
+
+      // Step 5: Get model estimates
       const res = await axios.post(
         "https://3-d-print-cost-estimator-zlt9.vercel.app/api/estimate",
         // "http://localhost:5000/api/estimate",
@@ -53,7 +82,7 @@ export default function FileUpload({ onFile, setModelInfo }) {
       if (onFile) onFile(blob);
     } catch (err) {
       console.error(err);
-      alert("Upload/analysis failed. See backend logs.");
+      alert("Upload/analysis failed. See console for details.");
     } finally {
       setLoading(false);
     }
@@ -78,7 +107,7 @@ export default function FileUpload({ onFile, setModelInfo }) {
           />
           <div className="w-full py-4 px-6 rounded-lg border border-gray-700 text-center cursor-pointer hover:border-accent transition">
             {loading
-              ? "Analyzing..."
+              ? "Analyzing & Saving..."
               : "Click to upload or drag file here (.stl)"}
           </div>
         </label>
