@@ -108,6 +108,22 @@ export default function EstimatorPanel({
       if (customOrderDetails) {
         isUpdate = true;
       }
+      let response = null;
+
+      if (!isUpdate) {
+        // Generate a new orderId for new orders
+        // Call generate link API (to be provided)
+        response = await axios.post(API_ENDPOINTS.GENERATE_LINK, {
+          products: [
+            {
+              quantity: 1,
+              productId: modelId,
+            },
+          ],
+          isCustomOrder: true,
+        });
+        customOrderData.orderId = response.data.linkId;
+      }
 
       // Save or update custom order details to Google Sheets
       if (isUpdate) {
@@ -122,23 +138,6 @@ export default function EstimatorPanel({
         await axios.post(API_ENDPOINTS.SAVE_CUSTOM_ORDER, customOrderData);
         console.log("Custom order details saved successfully");
       }
-
-      // Prepare order data for generate link API
-      const orderData = {
-        ...customOrderData,
-        effective_volume_cm3: estimate.effectiveVolume,
-      };
-
-      // Call generate link API (to be provided)
-      const response = await axios.post(API_ENDPOINTS.GENERATE_LINK, {
-        products: [
-          {
-            quantity: 1,
-            productId: modelId,
-          },
-        ],
-        isCustomOrder: true,
-      });
 
       // Redirect to generated link with referrer
       if (response.data.linkId) {

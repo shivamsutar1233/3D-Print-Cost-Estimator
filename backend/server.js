@@ -266,6 +266,7 @@ async function ensureCustomOrderDetailsSheet() {
   try {
     const CUSTOM_SHEET_NAME = "Custom-Orders";
     const headers = [
+      "Order ID",
       "Model ID",
       "Material",
       "Infill",
@@ -314,7 +315,7 @@ async function ensureCustomOrderDetailsSheet() {
       // Add headers
       await sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_ORDER_SHEET_ID,
-        range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
+        range: `${CUSTOM_SHEET_NAME}!A1:R1`,
         valueInputOption: "USER_ENTERED",
         resource: {
           values: [headers],
@@ -324,7 +325,7 @@ async function ensureCustomOrderDetailsSheet() {
       // Check if headers exist
       const existingHeaders = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_ORDER_SHEET_ID,
-        range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
+        range: `${CUSTOM_SHEET_NAME}!A1:R1`,
       });
 
       if (
@@ -334,7 +335,7 @@ async function ensureCustomOrderDetailsSheet() {
         // Add headers if missing
         await sheets.spreadsheets.values.update({
           spreadsheetId: GOOGLE_ORDER_SHEET_ID,
-          range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
+          range: `${CUSTOM_SHEET_NAME}!A1:R1`,
           valueInputOption: "USER_ENTERED",
           resource: {
             values: [headers],
@@ -352,6 +353,7 @@ async function ensureCustomOrderDetailsSheet() {
 app.post("/api/saveCustomOrderDetails", async (req, res) => {
   try {
     const {
+      orderId,
       modelId,
       material,
       infill,
@@ -395,11 +397,12 @@ app.post("/api/saveCustomOrderDetails", async (req, res) => {
     // Append row to sheet
     await sheets.spreadsheets.values.append({
       spreadsheetId: GOOGLE_ORDER_SHEET_ID,
-      range: `${CUSTOM_SHEET_NAME}!A:Q`,
+      range: `${CUSTOM_SHEET_NAME}!A:R`,
       valueInputOption: "USER_ENTERED",
       resource: {
         values: [
           [
+            orderId || "",
             modelId,
             material || "",
             infill || "",
@@ -454,13 +457,14 @@ app.get("/api/customOrderDetails/:modelId", async (req, res) => {
     // Get all rows
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_ORDER_SHEET_ID,
-      range: `${CUSTOM_SHEET_NAME}!A:Q`,
+      range: `${CUSTOM_SHEET_NAME}!A:R`,
     });
 
     const rows = response.data.values || [];
 
     // Skip header row and find matching modelId
     const headers = [
+      "orderId",
       "modelId",
       "material",
       "infill",
@@ -480,7 +484,7 @@ app.get("/api/customOrderDetails/:modelId", async (req, res) => {
       "timestamp",
     ];
 
-    const dataRow = rows.slice(1).find((row) => row[0] === modelId);
+    const dataRow = rows.slice(1).find((row) => row[1] === modelId);
 
     if (!dataRow) {
       return res.status(404).json({
@@ -536,11 +540,11 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
     // Get all rows
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_ORDER_SHEET_ID,
-      range: `${CUSTOM_SHEET_NAME}!A:Q`,
+      range: `${CUSTOM_SHEET_NAME}!A:R`,
     });
 
     const rows = response.data.values || [];
-    const rowIndex = rows.findIndex((row) => row[0] === modelId);
+    const rowIndex = rows.findIndex((row) => row[1] === modelId);
 
     if (rowIndex === -1) {
       return res.status(404).json({
@@ -552,6 +556,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
     // Get existing row and merge updates
     const existingRow = rows[rowIndex];
     const headers = [
+      "orderId",
       "modelId",
       "material",
       "infill",
@@ -590,7 +595,7 @@ app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
     // Update row in sheet
     await sheets.spreadsheets.values.update({
       spreadsheetId: GOOGLE_ORDER_SHEET_ID,
-      range: `${CUSTOM_SHEET_NAME}!A${rowIndex + 1}:Q${rowIndex + 1}`,
+      range: `${CUSTOM_SHEET_NAME}!A${rowIndex + 1}:R${rowIndex + 1}`,
       valueInputOption: "USER_ENTERED",
       resource: {
         values: [updatedRow],
