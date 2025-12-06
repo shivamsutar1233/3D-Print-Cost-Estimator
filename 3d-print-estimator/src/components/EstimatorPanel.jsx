@@ -130,12 +130,14 @@ export default function EstimatorPanel({
       };
 
       // Call generate link API (to be provided)
-      const response = await axios.post(API_ENDPOINTS.GENERATE_LINK, [
-        {
-          quantity: 1,
-          productId: modelId,
-        },
-      ]);
+      const response = await axios.post(API_ENDPOINTS.GENERATE_LINK, {
+        products: [
+          {
+            quantity: 1,
+            productId: modelId,
+          },
+        ],
+      });
 
       // Redirect to generated link with referrer
       if (response.data.linkId) {
