@@ -258,6 +258,359 @@ app.get("/api/get-model/:modelId", async (req, res) => {
   }
 });
 
+// ===== CUSTOM ORDER DETAILS ENDPOINTS =====
+
+// Helper function: Ensure CustomOrderDetails sheet and headers exist
+async function ensureCustomOrderDetailsSheet() {
+  try {
+    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+    const headers = [
+      "Model ID",
+      "Material",
+      "Infill",
+      "Layer Height",
+      "Model URL",
+      "Volume (cm³)",
+      "Dimensions (cm)",
+      "Supports Needed",
+      "Print Time",
+      "Material Cost",
+      "Service Charge",
+      "Total Cost",
+      "Referrer",
+      "Customization Options",
+      "Custom Notes",
+      "Special Requirements",
+      "Timestamp",
+    ];
+
+    // Get all sheets
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+    });
+
+    const existingSheet = spreadsheet.data.sheets.find(
+      (sheet) => sheet.properties.title === CUSTOM_SHEET_NAME
+    );
+
+    if (!existingSheet) {
+      // Create sheet if it doesn't exist
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        resource: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: CUSTOM_SHEET_NAME,
+                },
+              },
+            },
+          ],
+        },
+      });
+
+      // Add headers
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
+        valueInputOption: "USER_ENTERED",
+        resource: {
+          values: [headers],
+        },
+      });
+    } else {
+      // Check if headers exist
+      const existingHeaders = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
+      });
+
+      if (
+        !existingHeaders.data.values ||
+        existingHeaders.data.values[0].length === 0
+      ) {
+        // Add headers if missing
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: GOOGLE_SHEET_ID,
+          range: `${CUSTOM_SHEET_NAME}!A1:Q1`,
+          valueInputOption: "USER_ENTERED",
+          resource: {
+            values: [headers],
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error ensuring CustomOrderDetails sheet:", err);
+    throw err;
+  }
+}
+
+// POST /api/saveCustomOrderDetails - Save order details
+app.post("/api/saveCustomOrderDetails", async (req, res) => {
+  try {
+    const {
+      modelId,
+      material,
+      infill,
+      layerHeight,
+      modelUrl,
+      volume_cm3,
+      dims_cm,
+      supportsNeeded,
+      printTime,
+      materialCost,
+      serviceCharge,
+      totalCost,
+      referrer,
+      customizationOptions,
+      customNotes,
+      specialRequirements,
+      timestamp,
+    } = req.body;
+
+    // Validate required field
+    if (!modelId) {
+      return res.status(400).json({
+        success: false,
+        message: "modelId is required",
+      });
+    }
+
+    if (!GOOGLE_SHEET_ID) {
+      return res.status(500).json({
+        success: false,
+        message: "Google Sheets not configured",
+      });
+    }
+
+    // Ensure sheet exists
+    await ensureCustomOrderDetailsSheet();
+
+    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+    const finalTimestamp = timestamp || new Date().toISOString();
+
+    // Append row to sheet
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${CUSTOM_SHEET_NAME}!A:Q`,
+      valueInputOption: "USER_ENTERED",
+      resource: {
+        values: [
+          [
+            modelId,
+            material || "",
+            infill || "",
+            layerHeight || "",
+            modelUrl || "",
+            volume_cm3 || "",
+            JSON.stringify(dims_cm || {}),
+            supportsNeeded || "",
+            printTime || "",
+            materialCost || "",
+            serviceCharge || "",
+            totalCost || "",
+            referrer || "",
+            JSON.stringify(customizationOptions || {}),
+            customNotes || "",
+            specialRequirements || "",
+            finalTimestamp,
+          ],
+        ],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Custom order details saved successfully",
+      modelId,
+    });
+  } catch (err) {
+    console.error("Error saving custom order details:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error saving custom order details",
+      error: err.message,
+    });
+  }
+});
+
+// GET /api/customOrderDetails/:modelId - Retrieve order details
+app.get("/api/customOrderDetails/:modelId", async (req, res) => {
+  try {
+    const { modelId } = req.params;
+
+    if (!GOOGLE_SHEET_ID) {
+      return res.status(500).json({
+        success: false,
+        message: "Google Sheets not configured",
+      });
+    }
+
+    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+
+    // Get all rows
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${CUSTOM_SHEET_NAME}!A:Q`,
+    });
+
+    const rows = response.data.values || [];
+
+    // Skip header row and find matching modelId
+    const headers = [
+      "modelId",
+      "material",
+      "infill",
+      "layerHeight",
+      "modelUrl",
+      "volume_cm3",
+      "dims_cm",
+      "supportsNeeded",
+      "printTime",
+      "materialCost",
+      "serviceCharge",
+      "totalCost",
+      "referrer",
+      "customizationOptions",
+      "customNotes",
+      "specialRequirements",
+      "timestamp",
+    ];
+
+    const dataRow = rows.slice(1).find((row) => row[0] === modelId);
+
+    if (!dataRow) {
+      return res.status(404).json({
+        success: false,
+        message: "Custom order details not found",
+      });
+    }
+
+    // Parse JSON fields
+    const data = {};
+    headers.forEach((header, index) => {
+      const value = dataRow[index];
+      if (header === "dims_cm" || header === "customizationOptions") {
+        try {
+          data[header] = value ? JSON.parse(value) : {};
+        } catch {
+          data[header] = value || {};
+        }
+      } else {
+        data[header] = value || "";
+      }
+    });
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (err) {
+    console.error("Error retrieving custom order details:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving custom order details",
+      error: err.message,
+    });
+  }
+});
+
+// PUT /api/updateCustomOrderDetails/:modelId - Update order details
+app.put("/api/updateCustomOrderDetails/:modelId", async (req, res) => {
+  try {
+    const { modelId } = req.params;
+    const updateData = req.body;
+
+    if (!GOOGLE_SHEET_ID) {
+      return res.status(500).json({
+        success: false,
+        message: "Google Sheets not configured",
+      });
+    }
+
+    const CUSTOM_SHEET_NAME = "CustomOrderDetails";
+
+    // Get all rows
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${CUSTOM_SHEET_NAME}!A:Q`,
+    });
+
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex((row) => row[0] === modelId);
+
+    if (rowIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Custom order details not found",
+      });
+    }
+
+    // Get existing row and merge updates
+    const existingRow = rows[rowIndex];
+    const headers = [
+      "modelId",
+      "material",
+      "infill",
+      "layerHeight",
+      "modelUrl",
+      "volume_cm3",
+      "dims_cm",
+      "supportsNeeded",
+      "printTime",
+      "materialCost",
+      "serviceCharge",
+      "totalCost",
+      "referrer",
+      "customizationOptions",
+      "customNotes",
+      "specialRequirements",
+      "timestamp",
+    ];
+
+    const updatedRow = [...existingRow];
+
+    // Apply updates
+    headers.forEach((header, index) => {
+      if (updateData[header] !== undefined) {
+        if (header === "dims_cm" || header === "customizationOptions") {
+          updatedRow[index] = JSON.stringify(updateData[header]);
+        } else {
+          updatedRow[index] = updateData[header];
+        }
+      }
+    });
+
+    // Update timestamp
+    updatedRow[16] = new Date().toISOString();
+
+    // Update row in sheet
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${CUSTOM_SHEET_NAME}!A${rowIndex + 1}:Q${rowIndex + 1}`,
+      valueInputOption: "USER_ENTERED",
+      resource: {
+        values: [updatedRow],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Custom order details updated successfully",
+      modelId,
+    });
+  } catch (err) {
+    console.error("Error updating custom order details:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error updating custom order details",
+      error: err.message,
+    });
+  }
+});
+
 app.get("/", (req, res) => {
   res.send("3D Print Cost Estimator Backend is running.");
 });

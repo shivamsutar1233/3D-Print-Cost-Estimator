@@ -10,6 +10,7 @@ export default function App() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [modelInfo, setModelInfo] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [customOrderDetails, setCustomOrderDetails] = useState(null);
 
   // Fetch model from Google Sheets on page load if modelId is in URL
   useEffect(() => {
@@ -19,6 +20,7 @@ export default function App() {
 
       setLoading(true);
       try {
+        // Step 1: Fetch model URL from Models sheet
         const response = await axios.get(
           `https://3-d-print-cost-estimator-zlt9.vercel.app/api/get-model/${modelId}`
           // `http://localhost:5000/api/get-model/${modelId}`
@@ -29,7 +31,7 @@ export default function App() {
         setPreviewUrl(modelUrl);
         setFile({ url: modelUrl, name: `${modelId}.stl` });
 
-        // Fetch model info by calling estimate endpoint
+        // Step 2: Fetch model info by calling estimate endpoint
         const estimateRes = await axios.post(
           "https://3-d-print-cost-estimator-zlt9.vercel.app/api/estimate",
           // "http://localhost:5000/api/estimate",
@@ -38,6 +40,24 @@ export default function App() {
           }
         );
         setModelInfo(estimateRes.data);
+
+        // Step 3: Fetch custom order details from CustomOrderDetails sheet
+        try {
+          const customOrderRes = await axios.get(
+            `https://3-d-print-cost-estimator-zlt9.vercel.app/api/customOrderDetails/${modelId}`
+            // `http://localhost:5000/api/customOrderDetails/${modelId}`
+          );
+          if (customOrderRes.data.success) {
+            setCustomOrderDetails(customOrderRes.data.data);
+            console.log(
+              "Custom order details loaded:",
+              customOrderRes.data.data
+            );
+          }
+        } catch (orderErr) {
+          // Custom order details might not exist yet (new model)
+          console.log("No custom order details found yet:", orderErr.message);
+        }
       } catch (err) {
         console.error("Error loading model from URL:", err);
         alert("Failed to load model. Please try uploading again.");
@@ -114,7 +134,11 @@ export default function App() {
 
         {/* Right: Estimator */}
         <div>
-          <EstimatorPanel modelInfo={modelInfo} previewUrl={previewUrl} />
+          <EstimatorPanel
+            modelInfo={modelInfo}
+            previewUrl={previewUrl}
+            customOrderDetails={customOrderDetails}
+          />
         </div>
       </div>
     </div>

@@ -1,12 +1,29 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
+import { API_ENDPOINTS } from "../config/api";
 
-export default function EstimatorPanel({ modelInfo, previewUrl }) {
+export default function EstimatorPanel({
+  modelInfo,
+  previewUrl,
+  customOrderDetails,
+}) {
   const [activeStep, setActiveStep] = useState(1);
   const [material, setMaterial] = useState("PLA");
   const [infill, setInfill] = useState(20);
   const [layerHeight, setLayerHeight] = useState(0.2);
   const [estimate, setEstimate] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  // Pre-populate with custom order details when they become available
+  useEffect(() => {
+    if (customOrderDetails) {
+      setMaterial(customOrderDetails.material || "PLA");
+      setInfill(customOrderDetails.infill || 20);
+      setLayerHeight(customOrderDetails.layerHeight || 0.2);
+      console.log("Populated form with custom order details");
+    }
+  }, [customOrderDetails]);
 
   useEffect(() => {
     // whenever params or model change, update estimate
@@ -58,6 +75,79 @@ export default function EstimatorPanel({ modelInfo, previewUrl }) {
     let eff = volume_cm3 * (solidFactor * infillFraction + (1 - solidFactor));
     if (supportsNeeded) eff *= 1.2;
     return eff;
+  }
+
+  async function proceedWithOrder() {
+    if (!estimate || !modelInfo) return;
+
+    setOrderLoading(true);
+    try {
+      // Get modelId from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const modelId = urlParams.get("modelId") || "guest_" + Date.now();
+
+      // Prepare order data for saving custom order details
+      const customOrderData = {
+        modelId,
+        material,
+        infill: String(infill),
+        layerHeight: String(layerHeight),
+        modelUrl: previewUrl,
+        volume_cm3: String(modelInfo.volume_cm3),
+        dims_cm: modelInfo.dims_cm,
+        supportsNeeded: String(modelInfo.supportsNeeded),
+        printTime: modelInfo.printTime,
+        materialCost: String(estimate.materialCost),
+        serviceCharge: String(estimate.service),
+        totalCost: String(estimate.total),
+        referrer: window.location.href,
+      };
+
+      // Check if custom order details already exist
+      let isUpdate = false;
+      if (customOrderDetails) {
+        isUpdate = true;
+      }
+
+      // Save or update custom order details to Google Sheets
+      if (isUpdate) {
+        // Update existing order details
+        await axios.put(
+          `${API_ENDPOINTS.UPDATE_CUSTOM_ORDER}/${modelId}`,
+          customOrderData
+        );
+        console.log("Custom order details updated successfully");
+      } else {
+        // Create new order details
+        await axios.post(API_ENDPOINTS.SAVE_CUSTOM_ORDER, customOrderData);
+        console.log("Custom order details saved successfully");
+      }
+
+      // Prepare order data for generate link API
+      const orderData = {
+        ...customOrderData,
+        effective_volume_cm3: estimate.effectiveVolume,
+      };
+
+      // Call generate link API (to be provided)
+      const response = await axios.post(API_ENDPOINTS.GENERATE_LINK, {
+        quantity: 1,
+        productId: modelId,
+      });
+
+      // Redirect to generated link with referrer
+      if (response.data.linkId) {
+        const linkWithReferrer = `https://forms.div-arch.com/checkout/${
+          response.data.linkId
+        }?referrer=${encodeURIComponent(window.location.href)}`;
+        window.location.href = linkWithReferrer;
+      }
+    } catch (err) {
+      console.error("Error proceeding with order:", err);
+      alert("Failed to process order. Please try again.");
+    } finally {
+      setOrderLoading(false);
+    }
   }
 
   return (
@@ -136,6 +226,15 @@ export default function EstimatorPanel({ modelInfo, previewUrl }) {
               <span>Total (incl. GST)</span>
               <span className="text-green-400">₹{estimate.total}</span>
             </div>
+
+            {/* Proceed with Order Button */}
+            <button
+              onClick={proceedWithOrder}
+              disabled={orderLoading}
+              className="btn-primary w-full mt-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {orderLoading ? "Processing..." : "Proceed with Order"}
+            </button>
           </div>
         )}
       </div>
