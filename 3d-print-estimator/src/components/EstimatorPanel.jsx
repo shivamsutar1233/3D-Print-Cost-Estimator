@@ -137,6 +137,7 @@ export default function EstimatorPanel({
             productId: modelId,
           },
         ],
+        isCustomOrder: true,
       });
 
       // Redirect to generated link with referrer
