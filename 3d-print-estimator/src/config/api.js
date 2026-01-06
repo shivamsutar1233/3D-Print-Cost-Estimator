@@ -1,8 +1,8 @@
 // API Configuration
 // Update these endpoints as needed
 
-// export const API_BASE_URL = "https://3-d-print-cost-estimator-zlt9.vercel.app";
-export const API_BASE_URL = "http://localhost:5000";
+export const API_BASE_URL = "https://3-d-print-cost-estimator-zlt9.vercel.app";
+// export const API_BASE_URL = "http://localhost:5000";
 export const FORMS_API_BASE_URL = "https://forms-api.div-arch.com";
 
 export const API_ENDPOINTS = {
