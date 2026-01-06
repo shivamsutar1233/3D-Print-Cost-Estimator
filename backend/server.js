@@ -9,34 +9,16 @@ import { config } from "dotenv";
 // Load environment variables from .env.local or .env
 config();
 
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-// config({ path: "./.env.local" });
-
 const app = express();
-// a.use(
-//   cors({
-//     origin: [
-//       "http://localhost:5173",
-//       "https://3-d-print-cost-estimator-zlt9.vercel.app",
-//       "*.alphasquare.in",
-//     ],
-//     methods: ["GET", "POST", "PUT", "DELETE"],
-//     allowedHeaders: ["Content-Type"],
-//   })
-// );
 app.use(cors());
 app.use(express.json());
 
 // Google Sheets Configuration
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const GOOGLE_ORDER_SHEET_ID = process.env.GOOGLE_ORDER_SHEET_ID;
-// const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-// const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(
-//   /\\n/g,
-//   "\n"
-// );
+const GOOGLE_PRODUCTS_SHEET_ID = process.env.GOOGLE_PRODUCTS_SHEET_ID;
 const SHEET_NAME = "Models"; // Name of the sheet to store models
+const MATERIALS_SHEET_NAME = "Materials";
 
 // Initialize Google Sheets API
 const auth = new google.auth.GoogleAuth({
@@ -614,6 +596,38 @@ app.put("/api/updateCustomOrderDetails/:orderId", async (req, res) => {
       message: "Error updating custom order details",
       error: err.message,
     });
+  }
+});
+
+// Fetch materials from Google Sheets
+app.get("/api/getMaterials", async (req, res) => {
+  try {
+    if (!GOOGLE_PRODUCTS_SHEET_ID) {
+      return res.status(500).json({ message: "Google Sheets not configured" });
+    }
+
+    // Read all rows from sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_PRODUCTS_SHEET_ID,
+      range: `${MATERIALS_SHEET_NAME}!A:F`,
+    });
+
+    const rows = response.data.values || [];
+    // Skip header row (index 0) and find matching modelId
+    const rowsWithoutHeader = rows.slice(1);
+
+    if (!rowsWithoutHeader || rowsWithoutHeader.length === 0) {
+      return res.status(404).json({ message: "No materials found" });
+    }
+
+    res.json({
+      materials: rowsWithoutHeader,
+    });
+  } catch (err) {
+    console.error("Error fetching materials from sheet:", err);
+    res
+      .status(500)
+      .json({ message: "Error fetching materials", error: err.message });
   }
 });
 

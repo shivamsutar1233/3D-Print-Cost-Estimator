@@ -1,9 +1,9 @@
 // API Configuration
 // Update these endpoints as needed
 
-export const API_BASE_URL = "https://3-d-print-cost-estimator-zlt9.vercel.app";
+// export const API_BASE_URL = "https://3-d-print-cost-estimator-zlt9.vercel.app";
+export const API_BASE_URL = "http://localhost:5000";
 export const FORMS_API_BASE_URL = "https://forms-api.div-arch.com";
-//   "http://localhost:5000";
 
 export const API_ENDPOINTS = {
   // 3D Estimator APIs
@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
   SAVE_CUSTOM_ORDER: `${API_BASE_URL}/api/saveCustomOrderDetails`,
   GET_CUSTOM_ORDER: `${API_BASE_URL}/api/customOrderDetails`,
   UPDATE_CUSTOM_ORDER: `${API_BASE_URL}/api/updateCustomOrderDetails`,
+  GET_MATERIALS: `${API_BASE_URL}/api/getMaterials`,
 };
 
 export default API_ENDPOINTS;

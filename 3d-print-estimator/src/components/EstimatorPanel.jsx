@@ -1,19 +1,26 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { API_ENDPOINTS } from "../config/api";
-
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import Select from "@mui/material/Select";
+import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
+import TextField from "@mui/material/TextField";
 export default function EstimatorPanel({
   modelInfo,
   previewUrl,
   customOrderDetails,
 }) {
   const [activeStep, setActiveStep] = useState(1);
-  const [material, setMaterial] = useState("PLA");
+  const [material, setMaterial] = useState("");
   const [infill, setInfill] = useState(20);
   const [layerHeight, setLayerHeight] = useState(0.2);
   const [estimate, setEstimate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [materials, setMaterials] = useState([]);
 
   // Pre-populate with custom order details when they become available
   useEffect(() => {
@@ -34,6 +41,30 @@ export default function EstimatorPanel({
     fetchEstimate();
     // eslint-disable-next-line
   }, [material, infill, layerHeight, modelInfo]);
+
+  useEffect(() => {
+    fetchMaterials();
+  }, []);
+
+  async function fetchMaterials() {
+    setMaterialsLoading(true);
+    try {
+      const response = await axios.get(API_ENDPOINTS.GET_MATERIALS);
+      setMaterials(response.data.materials || []);
+      let i = 0;
+      while (response.data.materials.length > 0) {
+        if (response.data.materials[0][4] !== "Out of stock") {
+          setMaterial(response.data.materials[i][1] || "PLA");
+          break;
+        }
+        i++;
+      }
+    } catch (err) {
+      console.error("Error fetching materials:", err);
+    } finally {
+      setMaterialsLoading(false);
+    }
+  }
 
   async function fetchEstimate() {
     if (!previewUrl || !modelInfo) return;
@@ -156,95 +187,121 @@ export default function EstimatorPanel({
       setOrderLoading(false);
     }
   }
-
+  const theme = useTheme();
+  const darkTheme = createTheme({
+    palette: {
+      mode: "dark",
+    },
+  });
+  console.log("Materials:", material?.toString());
   return (
-    <div className="card">
-      <h3 className="text-xl font-semibold mb-4">Configure & Price</h3>
+    <ThemeProvider theme={darkTheme}>
+      <div className="card">
+        <h3 className="text-xl font-semibold mb-4">Configure & Price</h3>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Material</label>
-          <select
-            value={material}
-            onChange={(e) => setMaterial(e.target.value)}
-            className="w-full p-2 bg-gray-800 rounded"
-          >
-            <option>PLA</option>
-            <option>ABS</option>
-            <option>PETG</option>
-          </select>
-        </div>
+        <div className="space-y-4 gap-4 flex flex-col">
+          <FormControl fullWidth>
+            <InputLabel id="demo-simple-select-label">Material</InputLabel>
+            <Select
+              labelId="demo-simple-select-label"
+              id="demo-simple-select"
+              value={material}
+              defaultValue={material}
+              defaultChecked={material?.toString()}
+              label="Material"
+              onChange={(e) => setMaterial(e.target.value)}
+              disabled={materialsLoading}
+            >
+              {materialsLoading ? (
+                <MenuItem value="">
+                  <em>Loading...</em>
+                </MenuItem>
+              ) : (
+                materials.map((mat, idx) => (
+                  <MenuItem
+                    key={idx}
+                    value={mat[1]}
+                    disabled={mat[4] === "Out of stock"}
+                  >
+                    <div className="flex justify-between items-center w-full">
+                      <span>{mat[2]}</span>
+                      <div
+                        className=" w-8 h-4 z-40"
+                        style={{
+                          backgroundColor: mat[3],
+                        }}
+                      />
+                    </div>
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">
-              Infill (%)
-            </label>
-            <input
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              id="outlined-basic"
+              label="Infill (%)"
+              variant="outlined"
               type="number"
-              min="0"
-              max="100"
+              inputProps={{ min: 0, max: 100 }}
               value={infill}
+              disabled={loading || orderLoading || materialsLoading}
               onChange={(e) => setInfill(e.target.value)}
-              className="w-full p-2 bg-gray-800 rounded"
             />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">
-              Layer height (mm)
-            </label>
-            <input
+            <TextField
+              id="outlined-basic"
+              label="Layer height (mm)"
+              variant="outlined"
               type="number"
-              step="0.05"
-              min="0.05"
-              max="0.4"
+              inputProps={{ step: 0.05, min: 0.05, max: 0.4 }}
               value={layerHeight}
               onChange={(e) => setLayerHeight(e.target.value)}
-              className="w-full p-2 bg-gray-800 rounded"
+              disabled={loading || orderLoading || materialsLoading}
             />
           </div>
-        </div>
 
-        <div className="pt-3 border-t border-gray-800">
-          <button onClick={fetchEstimate} className="btn-primary w-full">
-            Recalculate Price
-          </button>
-        </div>
-
-        {loading && (
-          <p className="text-sm text-gray-400 mt-2">Calculating...</p>
-        )}
-
-        {estimate && (
-          <div className="mt-4 bg-gray-900 p-4 rounded">
-            <div className="flex justify-between text-sm text-gray-300">
-              <span>Material used</span>
-              <span>{estimate.effectiveVolume} cm³</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-300 mt-1">
-              <span>Material cost</span>
-              <span>₹{estimate.materialCost}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-300 mt-1">
-              <span>Service charge</span>
-              <span>₹{estimate.service}</span>
-            </div>
-            <div className="flex justify-between text-lg font-semibold mt-3">
-              <span>Total (incl. GST)</span>
-              <span className="text-green-400">₹{estimate.total}</span>
-            </div>
-
-            {/* Proceed with Order Button */}
-            <button
-              onClick={proceedWithOrder}
-              disabled={orderLoading}
-              className="btn-primary w-full mt-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {orderLoading ? "Processing..." : "Proceed with Order"}
+          <div className="pt-3 border-t border-gray-800">
+            <button onClick={fetchEstimate} className="btn-primary w-full">
+              Recalculate Price
             </button>
           </div>
-        )}
+
+          {loading && (
+            <p className="text-sm text-gray-400 mt-2">Calculating...</p>
+          )}
+
+          {estimate && (
+            <div className="mt-4 bg-gray-900 p-4 rounded">
+              <div className="flex justify-between text-sm text-gray-300">
+                <span>Material used</span>
+                <span>{estimate.effectiveVolume} cm³</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-300 mt-1">
+                <span>Material cost</span>
+                <span>₹{estimate.materialCost}</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-300 mt-1">
+                <span>Service charge</span>
+                <span>₹{estimate.service}</span>
+              </div>
+              <div className="flex justify-between text-lg font-semibold mt-3">
+                <span>Total (incl. GST)</span>
+                <span className="text-green-400">₹{estimate.total}</span>
+              </div>
+
+              {/* Proceed with Order Button */}
+              <button
+                onClick={proceedWithOrder}
+                disabled={orderLoading}
+                className="btn-primary w-full mt-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {orderLoading ? "Processing..." : "Proceed with Order"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </ThemeProvider>
   );
 }
